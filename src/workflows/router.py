@@ -2,7 +2,7 @@ from typing import List
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, status, Request, HTTPException
 
-from celery import group
+from celery import group, Signature
 
 from .models import Workflow
 from .schemas import (
@@ -95,12 +95,10 @@ def delete_workflow(
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def push_document(
-    workflow_pipeline: dict = Depends(get_pipeline),
+    workflow_pipeline: Signature = Depends(get_pipeline),
     workflow_file: WorkflowFile = Depends(get_file),
 ):
-    # Convert pipeline dict back to Celery signature
-    pipeline = workflow_pipeline
-    pipeline.apply_async(args=(workflow_file,))
+    workflow_pipeline.apply_async(args=(workflow_file,))
     return {"message": "Document pushed successfully."}
 
 
@@ -109,7 +107,7 @@ async def push_document(
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def push_documents(
-    workflow_pipeline: dict = Depends(get_pipeline),
+    workflow_pipeline: Signature = Depends(get_pipeline),
     workflow_files: List[WorkflowFile] = Depends(get_files),
 ):
     pipelines = []
@@ -131,7 +129,15 @@ async def push_message(
     session: Session = Depends(get_db),
 ):
     workflow = services.get_workflow_by_id(session, workflow_id)
-    workflow_pipeline = await get_pipeline(workflow)
+    if not workflow:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found"
+        )
+    if not workflow.pipeline:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Workflow has no pipeline defined"
+        )
     message = await request.json()
-    workflow_pipeline.apply_async(args=(message,))
+    workflow.pipeline.apply_async(args=(message,))
     return {"message": "Message pushed successfully."}

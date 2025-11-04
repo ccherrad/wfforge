@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import HTTPException, status, UploadFile, File
+from fastapi import HTTPException, status, UploadFile, File, Depends
 from sqlalchemy.orm import Session
 from celery import Signature
 
@@ -21,16 +21,7 @@ async def get_files(files: List[UploadFile] = File(...)):
     return [WorkflowFile(file) for file in files]
 
 
-async def get_pipeline(workflow: Workflow) -> Signature:
-    if not workflow.pipeline:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Workflow has no pipeline defined"
-        )
-    return workflow.pipeline
-
-
-def get_workflow(workflow_id: int, session: Session = get_db()) -> Workflow:
+def get_workflow(workflow_id: int, session: Session = Depends(get_db)) -> Workflow:
     workflow = session.query(Workflow).filter(Workflow.id == workflow_id).first()
     if not workflow:
         raise HTTPException(
@@ -38,3 +29,12 @@ def get_workflow(workflow_id: int, session: Session = get_db()) -> Workflow:
             detail="Workflow not found"
         )
     return workflow
+
+
+def get_pipeline(workflow: Workflow = Depends(get_workflow)) -> Signature:
+    if not workflow.pipeline:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Workflow has no pipeline defined"
+        )
+    return workflow.pipeline
