@@ -26,6 +26,9 @@ A powerful workflow engine built with FastAPI, Celery, and SQLite for creating a
 The easiest way to get started is using Docker Compose:
 
 ```bash
+# Create data directory (required for volume mount)
+mkdir -p data
+
 # Start all services (Redis, API, Worker, Scheduler)
 docker-compose up
 

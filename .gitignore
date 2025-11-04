@@ -32,6 +32,10 @@ venv.bak/
 *.db
 *.sqlite3
 
+# Data directory (ignore contents but keep directory)
+data/*
+!data/.gitkeep
+
 # Redis
 *.rdb
 
