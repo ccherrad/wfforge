@@ -4,24 +4,30 @@ from sqlalchemy.orm import Session
 from celery import Signature
 
 from .models import Workflow
+from .items import WorkflowItem, WorkflowInput
 from src.database import get_db
 
 
-class WorkflowFile:
-    def __init__(self, file: UploadFile, metadata: dict = None):
-        self.file = file
-        self.metadata = metadata or {}
+async def get_workflow_item(file: UploadFile = File(...)) -> WorkflowItem:
+    """
+    Create a WorkflowItem from an uploaded file.
+
+    This converts the file to a serialization-safe format with base64 encoding.
+    """
+    return await WorkflowItem.from_upload_file(file)
 
 
-async def get_file(file: UploadFile = File(...)):
-    return WorkflowFile(file)
+async def get_workflow_input(files: List[UploadFile] = File(...)) -> WorkflowInput:
+    """
+    Create a WorkflowInput from multiple uploaded files.
 
-
-async def get_files(files: List[UploadFile] = File(...)):
-    return [WorkflowFile(file) for file in files]
+    Each file becomes a separate item in the workflow input.
+    """
+    return await WorkflowInput.from_files(files)
 
 
 def get_workflow(workflow_id: int, session: Session = Depends(get_db)) -> Workflow:
+    """Get a workflow by ID."""
     workflow = session.query(Workflow).filter(Workflow.id == workflow_id).first()
     if not workflow:
         raise HTTPException(
@@ -32,6 +38,7 @@ def get_workflow(workflow_id: int, session: Session = Depends(get_db)) -> Workfl
 
 
 def get_pipeline(workflow: Workflow = Depends(get_workflow)) -> Signature:
+    """Get the Celery pipeline signature for a workflow."""
     if not workflow.pipeline:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -5,12 +5,14 @@ A powerful workflow engine built with FastAPI, Celery, and SQLite for creating a
 ## Features
 
 - **Visual Workflow Creation**: Design workflows with drag-and-drop interface (frontend separate)
+- **Generic Input System**: Flexible data model supporting JSON, files, and mixed types (inspired by n8n) - [Learn More](docs/GENERIC_INPUTS.md)
 - **Task Processing**: Execute workflows asynchronously using Celery
 - **Multiple Task Types**: File processing, AI agents, routing, and result merging
 - **SQLite Database**: Lightweight data storage for workflows and metadata
 - **RESTful API**: Full CRUD operations for workflows via FastAPI
 - **Scheduled Execution**: Cron-based workflow scheduling
 - **Redis Integration**: Message brokering and result backend
+- **Type Safety**: Pydantic validation for all inputs and outputs
 
 ## Architecture
 
