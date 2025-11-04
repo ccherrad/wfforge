@@ -21,13 +21,35 @@ A powerful workflow engine built with FastAPI, Celery, and SQLite for creating a
 
 ## Quick Start
 
-### Prerequisites
+### Option 1: Using Docker (Recommended)
+
+The easiest way to get started is using Docker Compose:
+
+```bash
+# Start all services (Redis, API, Worker, Scheduler)
+docker-compose up
+
+# Or run in detached mode
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop all services
+docker-compose down
+```
+
+The API will be available at http://localhost:8000
+
+### Option 2: Manual Installation
+
+#### Prerequisites
 
 - Python 3.9+
 - Redis server
 - uv package manager
 
-### Installation
+#### Installation
 
 1. Clone the repository:
 ```bash
@@ -51,7 +73,7 @@ cp .env.example .env
 python -c "from src.database import engine, Base; Base.metadata.create_all(bind=engine)"
 ```
 
-### Running the Application
+#### Running the Application
 
 1. Start Redis:
 ```bash
