@@ -19,6 +19,21 @@ celery_app = Celery(
 celery_app.conf.update(
     beat_dburi=f"sqlite:///{db.db_path}",  # Use SQLite for beat schedule
     beat_schedule_filename=None,  # Don't use file-based schedule
+    # Filesystem broker configuration
+    broker_transport_options={
+        "data_folder_in": settings.celery_broker_folder,
+        "data_folder_out": settings.celery_broker_folder + "/out",
+        "data_folder_processed": settings.celery_broker_processed_folder,
+    },
+    # SQLite result backend configuration
+    result_backend_transport_options={
+        "echo": False,  # Don't echo SQL queries
+    },
+    task_serializer="pickle",
+    result_serializer="pickle",
+    accept_content=["pickle", "json"],
+    timezone="UTC",
+    enable_utc=True,
 )
 
 # Configure Celery Beat scheduler
