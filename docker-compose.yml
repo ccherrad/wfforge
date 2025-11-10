@@ -1,0 +1,103 @@
+version: '3.8'
+
+services:
+  # FastAPI application server
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wfforge-api
+    ports:
+      - "8000:8000"
+    volumes:
+      # Shared data volume for SQLite databases
+      - wfforge-data:/app/data
+      # Shared volume for Celery filesystem broker
+      - wfforge-broker:/app/celery_broker
+    environment:
+      # Database configuration
+      - DATABASE_URL=sqlite:////app/data/workflows.db
+      # Celery configuration (filesystem broker + SQLite backend)
+      - CELERY_BROKER_URL=filesystem://
+      - CELERY_BROKER_FOLDER=/app/celery_broker
+      - CELERY_BROKER_PROCESSED_FOLDER=/app/celery_broker/processed
+      - CELERY_RESULT_BACKEND=db+sqlite:////app/data/celery_results.db
+      # API configuration
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DEBUG=false
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - wfforge-network
+
+  # Celery worker for task processing
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wfforge-worker
+    volumes:
+      # Shared data volume for SQLite databases
+      - wfforge-data:/app/data
+      # Shared volume for Celery filesystem broker
+      - wfforge-broker:/app/celery_broker
+    environment:
+      # Database configuration
+      - DATABASE_URL=sqlite:////app/data/workflows.db
+      # Celery configuration (filesystem broker + SQLite backend)
+      - CELERY_BROKER_URL=filesystem://
+      - CELERY_BROKER_FOLDER=/app/celery_broker
+      - CELERY_BROKER_PROCESSED_FOLDER=/app/celery_broker/processed
+      - CELERY_RESULT_BACKEND=db+sqlite:////app/data/celery_results.db
+    command: celery -A src.tasks.worker worker --loglevel=info
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - wfforge-network
+
+  # Celery Beat scheduler for periodic tasks
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wfforge-scheduler
+    volumes:
+      # Shared data volume for SQLite databases
+      - wfforge-data:/app/data
+      # Shared volume for Celery filesystem broker
+      - wfforge-broker:/app/celery_broker
+    environment:
+      # Database configuration
+      - DATABASE_URL=sqlite:////app/data/workflows.db
+      # Celery configuration (filesystem broker + SQLite backend)
+      - CELERY_BROKER_URL=filesystem://
+      - CELERY_BROKER_FOLDER=/app/celery_broker
+      - CELERY_BROKER_PROCESSED_FOLDER=/app/celery_broker/processed
+      - CELERY_RESULT_BACKEND=db+sqlite:////app/data/celery_results.db
+    command: celery -A src.tasks.scheduler beat --loglevel=info
+    depends_on:
+      - api
+      - worker
+    restart: unless-stopped
+    networks:
+      - wfforge-network
+
+# Named volumes for data persistence
+volumes:
+  wfforge-data:
+    driver: local
+  wfforge-broker:
+    driver: local
+
+# Network for service communication
+networks:
+  wfforge-network:
+    driver: bridge

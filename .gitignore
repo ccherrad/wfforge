@@ -32,8 +32,9 @@ venv.bak/
 *.db
 *.sqlite3
 
-# Redis
-*.rdb
+# Celery
+celery_broker/
+celery_results.db
 
 # Environment variables
 .env
