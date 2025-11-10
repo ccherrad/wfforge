@@ -14,14 +14,17 @@ services:
       - wfforge-data:/app/data
       # Shared volume for Celery filesystem broker
       - wfforge-broker:/app/celery_broker
+      # Shared volume for Celery file-based results
+      - wfforge-results:/app/celery_results
     environment:
       # Database configuration
       - DATABASE_URL=sqlite:////app/data/workflows.db
-      # Celery configuration (filesystem broker + SQLite backend)
+      # Celery configuration (filesystem broker + file backend)
       - CELERY_BROKER_URL=filesystem://
       - CELERY_BROKER_FOLDER=/app/celery_broker
       - CELERY_BROKER_PROCESSED_FOLDER=/app/celery_broker/processed
-      - CELERY_RESULT_BACKEND=db+sqlite:////app/data/celery_results.db
+      - CELERY_RESULT_BACKEND=file:///app/celery_results
+      - CELERY_RESULT_FOLDER=/app/celery_results
       # API configuration
       - HOST=0.0.0.0
       - PORT=8000
@@ -48,14 +51,17 @@ services:
       - wfforge-data:/app/data
       # Shared volume for Celery filesystem broker
       - wfforge-broker:/app/celery_broker
+      # Shared volume for Celery file-based results
+      - wfforge-results:/app/celery_results
     environment:
       # Database configuration
       - DATABASE_URL=sqlite:////app/data/workflows.db
-      # Celery configuration (filesystem broker + SQLite backend)
+      # Celery configuration (filesystem broker + file backend)
       - CELERY_BROKER_URL=filesystem://
       - CELERY_BROKER_FOLDER=/app/celery_broker
       - CELERY_BROKER_PROCESSED_FOLDER=/app/celery_broker/processed
-      - CELERY_RESULT_BACKEND=db+sqlite:////app/data/celery_results.db
+      - CELERY_RESULT_BACKEND=file:///app/celery_results
+      - CELERY_RESULT_FOLDER=/app/celery_results
     command: celery -A src.tasks.worker worker --loglevel=info
     depends_on:
       - api
@@ -74,14 +80,17 @@ services:
       - wfforge-data:/app/data
       # Shared volume for Celery filesystem broker
       - wfforge-broker:/app/celery_broker
+      # Shared volume for Celery file-based results
+      - wfforge-results:/app/celery_results
     environment:
       # Database configuration
       - DATABASE_URL=sqlite:////app/data/workflows.db
-      # Celery configuration (filesystem broker + SQLite backend)
+      # Celery configuration (filesystem broker + file backend)
       - CELERY_BROKER_URL=filesystem://
       - CELERY_BROKER_FOLDER=/app/celery_broker
       - CELERY_BROKER_PROCESSED_FOLDER=/app/celery_broker/processed
-      - CELERY_RESULT_BACKEND=db+sqlite:////app/data/celery_results.db
+      - CELERY_RESULT_BACKEND=file:///app/celery_results
+      - CELERY_RESULT_FOLDER=/app/celery_results
     command: celery -A src.tasks.scheduler beat --loglevel=info
     depends_on:
       - api
@@ -95,6 +104,8 @@ volumes:
   wfforge-data:
     driver: local
   wfforge-broker:
+    driver: local
+  wfforge-results:
     driver: local
 
 # Network for service communication
