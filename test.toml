@@ -1,7 +1,0 @@
-[project]
-name = "test"
-version = "0.1.0"
-
-[project.dependencies]
-fastapi = "^0.104.1"
-uvicorn = "^0.24.0"
