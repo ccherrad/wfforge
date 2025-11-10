@@ -50,12 +50,8 @@ COPY README.md ./
 # Create directories for SQLite databases, Celery broker, and results
 RUN mkdir -p /app/data /app/celery_broker/out /app/celery_broker/processed /app/celery_results
 
-# Create non-root user for security
-RUN useradd -m -u 1000 wfforge && \
-    chown -R wfforge:wfforge /app
-
-# Switch to non-root user
-USER wfforge
+# Note: Running as root to avoid permission issues with Docker volumes
+# For production, consider using an entrypoint script to fix permissions
 
 # Expose API port
 EXPOSE 8000
