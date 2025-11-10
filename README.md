@@ -29,8 +29,6 @@ WFForge uses a **filesystem-based message broker** instead of Redis, making it:
 - ✅ **Self-contained** - All data in local files
 - ✅ **Perfect for**: Development, single-server deployments, moderate workloads
 
-See [REDIS_REMOVAL_GUIDE.md](./REDIS_REMOVAL_GUIDE.md) for details.
-
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -66,8 +64,6 @@ docker-compose ps
 - API: http://localhost:8000
 - API Docs: http://localhost:8000/docs
 - Health: http://localhost:8000/health
-
-See [DOCKER.md](./DOCKER.md) for complete Docker documentation.
 
 #### Option 2: Native Python Installation
 
@@ -284,12 +280,6 @@ sqlite3 celery_results.db "SELECT * FROM celery_taskmeta LIMIT 10;"
 sqlite3 workflows.db "SELECT * FROM celery_periodic_task;"
 ```
 
-## 📚 Documentation
-
-- [DOCKER.md](./DOCKER.md) - Complete Docker deployment guide
-- [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) - SQLAlchemy to native SQLite migration
-- [REDIS_REMOVAL_GUIDE.md](./REDIS_REMOVAL_GUIDE.md) - Redis to filesystem broker migration
-
 ## 🎯 Use Cases
 
 Perfect for:
@@ -307,7 +297,7 @@ Perfect for:
 - **Scalability**: Single server, moderate workloads
 - **Storage**: Limited only by disk space
 
-For **very high volume** (1000+ tasks/sec) or **distributed** deployments, consider using Redis broker instead. See [REDIS_REMOVAL_GUIDE.md](./REDIS_REMOVAL_GUIDE.md) for trade-offs.
+For **very high volume** (1000+ tasks/sec) or **distributed** deployments, consider using Redis broker instead.
 
 ## 🔐 Security
 
