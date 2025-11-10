@@ -35,6 +35,7 @@ venv.bak/
 # Celery
 celery_broker/
 celery_results/
+celerybeat-schedule
 
 # Environment variables
 .env

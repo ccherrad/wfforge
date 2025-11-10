@@ -21,19 +21,14 @@ celery_app = Celery(
     backend=settings.celery_result_backend,
 )
 
-# Configure Celery Beat to use SQLite database for schedule persistence
+# Configure Celery Beat to use file-based schedule persistence
 celery_app.conf.update(
-    beat_dburi=f"sqlite:///{db.db_path}",  # Use SQLite for beat schedule
-    beat_schedule_filename=None,  # Don't use file-based schedule
+    beat_schedule_filename="celerybeat-schedule",  # Use file-based schedule
     # Filesystem broker configuration
     broker_transport_options={
         "data_folder_in": settings.celery_broker_folder,
         "data_folder_out": os.path.join(settings.celery_broker_folder, "out"),
         "data_folder_processed": settings.celery_broker_processed_folder,
-    },
-    # SQLite result backend configuration
-    result_backend_transport_options={
-        "echo": False,  # Don't echo SQL queries
     },
     task_serializer="pickle",
     result_serializer="pickle",
