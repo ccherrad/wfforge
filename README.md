@@ -35,10 +35,41 @@ See [REDIS_REMOVAL_GUIDE.md](./REDIS_REMOVAL_GUIDE.md) for details.
 
 ### Prerequisites
 
+**Option 1: Docker (Recommended)**
+- Docker Engine 20.10+
+- Docker Compose 2.0+
+
+**Option 2: Native Python**
 - Python 3.9+
 - That's it! No external services needed.
 
 ### Installation
+
+#### Option 1: Using Docker (Recommended) 🐳
+
+```bash
+# Clone repository
+git clone <repository-url>
+cd wfforge
+
+# Start all services with one command
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Check status
+docker-compose ps
+```
+
+**That's it!** All services are running:
+- API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+- Health: http://localhost:8000/health
+
+See [DOCKER.md](./DOCKER.md) for complete Docker documentation.
+
+#### Option 2: Native Python Installation
 
 1. Clone the repository:
 ```bash
@@ -64,6 +95,25 @@ cp .env.example .env
 4. **Database auto-initializes** on first run - no manual setup needed! ✨
 
 ### Running the Application
+
+**Using Docker:**
+
+```bash
+# Start all services
+docker-compose up -d
+
+# Stop all services
+docker-compose down
+```
+
+**Using Helper Scripts:**
+
+```bash
+# Start everything with one script
+./scripts/start_all.sh
+```
+
+**Using Python Directly:**
 
 **Option 1: Simple (3 commands)**
 
@@ -236,6 +286,7 @@ sqlite3 workflows.db "SELECT * FROM celery_periodic_task;"
 
 ## 📚 Documentation
 
+- [DOCKER.md](./DOCKER.md) - Complete Docker deployment guide
 - [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) - SQLAlchemy to native SQLite migration
 - [REDIS_REMOVAL_GUIDE.md](./REDIS_REMOVAL_GUIDE.md) - Redis to filesystem broker migration
 
