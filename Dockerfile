@@ -45,7 +45,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy application code
 COPY src/ ./src/
 COPY scripts/ ./scripts/
-COPY README.md MIGRATION_GUIDE.md REDIS_REMOVAL_GUIDE.md ./
+COPY README.md ./
 
 # Create directories for SQLite databases and Celery broker
 RUN mkdir -p /app/data /app/celery_broker/out /app/celery_broker/processed

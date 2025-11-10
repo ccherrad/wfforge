@@ -1,5 +1,11 @@
 from celery import Celery
+import os
 from src.config import settings
+
+# Ensure broker directories exist before Celery starts
+os.makedirs(settings.celery_broker_folder, exist_ok=True)
+os.makedirs(os.path.join(settings.celery_broker_folder, "out"), exist_ok=True)
+os.makedirs(settings.celery_broker_processed_folder, exist_ok=True)
 
 celery_app = Celery(
     "wfforge",
@@ -25,7 +31,7 @@ celery_app.conf.update(
     # Filesystem broker configuration
     broker_transport_options={
         "data_folder_in": settings.celery_broker_folder,
-        "data_folder_out": settings.celery_broker_folder + "/out",
+        "data_folder_out": os.path.join(settings.celery_broker_folder, "out"),
         "data_folder_processed": settings.celery_broker_processed_folder,
     },
     # SQLite result backend configuration
