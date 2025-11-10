@@ -1,5 +1,5 @@
 from typing import List
-from sqlalchemy.orm import Session
+import sqlite3
 from fastapi import APIRouter, Depends, status, Request, HTTPException
 
 from celery import group
@@ -32,9 +32,9 @@ router = APIRouter(prefix="/workflows", tags=["Workflows"])
 )
 def create_workflow(
     workflow_create: WorkflowCreate,
-    session: Session = Depends(get_db),
+    conn: sqlite3.Connection = Depends(get_db),
 ):
-    return services.create_workflow(session, **workflow_create.dict())
+    return services.create_workflow(conn, **workflow_create.dict())
 
 
 @router.get(
@@ -43,9 +43,9 @@ def create_workflow(
     status_code=status.HTTP_200_OK,
 )
 def get_workflows(
-    session: Session = Depends(get_db),
+    conn: sqlite3.Connection = Depends(get_db),
 ):
-    return services.get_workflows(session)
+    return services.get_workflows(conn)
 
 
 @router.get(
@@ -55,9 +55,9 @@ def get_workflows(
 )
 def get_workflow(
     workflow_id: int,
-    session: Session = Depends(get_db),
+    conn: sqlite3.Connection = Depends(get_db),
 ):
-    workflow = services.get_workflow_by_id(session, workflow_id)
+    workflow = services.get_workflow_by_id(conn, workflow_id)
     if not workflow:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found"
@@ -72,9 +72,9 @@ def get_workflow(
 def update_workflow(
     workflow_update: WorkflowUpdate,
     workflow: Workflow = Depends(get_workflow),
-    session: Session = Depends(get_db),
+    conn: sqlite3.Connection = Depends(get_db),
 ):
-    workflow = services.update_workflow(session, workflow.id, **workflow_update.dict())
+    workflow = services.update_workflow(conn, workflow.id, **workflow_update.dict())
     return workflow
 
 
@@ -84,9 +84,9 @@ def update_workflow(
 )
 def delete_workflow(
     workflow: Workflow = Depends(get_workflow),
-    session: Session = Depends(get_db),
+    conn: sqlite3.Connection = Depends(get_db),
 ):
-    services.delete_workflow(session, workflow.id)
+    services.delete_workflow(conn, workflow.id)
     return None
 
 
@@ -128,9 +128,9 @@ async def push_documents(
 async def push_message(
     request: Request,
     workflow_id: int,
-    session: Session = Depends(get_db),
+    conn: sqlite3.Connection = Depends(get_db),
 ):
-    workflow = services.get_workflow_by_id(session, workflow_id)
+    workflow = services.get_workflow_by_id(conn, workflow_id)
     workflow_pipeline = await get_pipeline(workflow)
     message = await request.json()
     workflow_pipeline.apply_async(args=(message,))

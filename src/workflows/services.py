@@ -1,11 +1,11 @@
 from typing import List, Optional
+import sqlite3
 import structlog
-from sqlalchemy import desc
-from sqlalchemy.orm import Session
-from sqlalchemy.sql.elements import BinaryExpression
 from celery import chain, group, chord, signature
+from datetime import datetime
 
 from .models import Workflow
+from src.database import serialize_json, deserialize_json, serialize_datetime
 
 logger = structlog.get_logger(__name__)
 
@@ -150,58 +150,168 @@ def workflow_to_signature(definition, workflow_id):
     return build_signature(start_node)
 
 
-def create_workflow(session: Session, **kwargs) -> Workflow:
-    new_workflow = Workflow(**kwargs)
-    session.add(new_workflow)
-    session.flush()
+def create_workflow(conn: sqlite3.Connection, **kwargs) -> Workflow:
+    """Create a new workflow in the database"""
+    cursor = conn.cursor()
 
-    workflow_id = new_workflow.id
-
-    # Only create pipeline if definition exists
+    # Extract fields
+    name = kwargs.get("name", "")
+    description = kwargs.get("description")
+    status = kwargs.get("status", "EDIT")
+    draft = kwargs.get("draft", True)
     definition = kwargs.get("definition")
-    if definition and definition["nodes"]:
-        pipeline = workflow_to_signature(definition, workflow_id)
-        new_workflow.pipeline = pipeline
+    crontab_expression = kwargs.get("crontab_expression")
 
-    session.commit()
-    return new_workflow
+    # Serialize JSON fields
+    definition_json = serialize_json(definition)
+    pipeline_json = None
+
+    # Insert workflow without pipeline first to get the ID
+    cursor.execute(
+        """
+        INSERT INTO workflows (name, description, status, draft, definition, pipeline, crontab_expression)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (name, description, status, draft, definition_json, pipeline_json, crontab_expression),
+    )
+    conn.commit()
+
+    workflow_id = cursor.lastrowid
+
+    # Generate pipeline if definition exists
+    if definition and definition.get("nodes"):
+        pipeline = workflow_to_signature(definition, workflow_id)
+        pipeline_json = serialize_json(pipeline)
+
+        # Update workflow with pipeline
+        cursor.execute(
+            """
+            UPDATE workflows
+            SET pipeline = ?
+            WHERE id = ?
+            """,
+            (pipeline_json, workflow_id),
+        )
+        conn.commit()
+
+    # Fetch the created workflow
+    cursor.execute("SELECT * FROM workflows WHERE id = ?", (workflow_id,))
+    row = cursor.fetchone()
+
+    return Workflow.from_db_row(row)
 
 
 def get_workflows(
-    session: Session,
+    conn: sqlite3.Connection,
     sort_desc: bool = False,
-    filters: List[BinaryExpression] = [],
+    status_filter: Optional[str] = None,
 ) -> List[Workflow]:
-    sort_by = desc(Workflow.created_at) if sort_desc else Workflow.created_at
-    return session.query(Workflow).filter(*filters).order_by(sort_by).all()
+    """Get all workflows from the database"""
+    cursor = conn.cursor()
+
+    query = "SELECT * FROM workflows"
+    params = []
+
+    if status_filter:
+        query += " WHERE status = ?"
+        params.append(status_filter)
+
+    if sort_desc:
+        query += " ORDER BY created_at DESC"
+    else:
+        query += " ORDER BY created_at ASC"
+
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+
+    return [Workflow.from_db_row(row) for row in rows]
 
 
 def get_workflow_by_id(
-    session: Session, workflow_id: int, filters: List[BinaryExpression] = []
-) -> Workflow:
-    filters.append(Workflow.id == workflow_id)
-    return session.query(Workflow).filter(*filters).first()
+    conn: sqlite3.Connection,
+    workflow_id: int,
+    status_filter: Optional[str] = None,
+) -> Optional[Workflow]:
+    """Get a workflow by ID from the database"""
+    cursor = conn.cursor()
 
+    query = "SELECT * FROM workflows WHERE id = ?"
+    params = [workflow_id]
 
-def update_workflow(session: Session, workflow_id, **kwargs) -> Optional[Workflow]:
-    workflow = session.query(Workflow).filter(Workflow.id == workflow_id).first()
-    definition = kwargs.get("definition")
-    if definition and definition["nodes"]:
-        pipeline = workflow_to_signature(definition, workflow_id)
-        kwargs["pipeline"] = pipeline
-    if workflow:
-        for key, value in kwargs.items():
-            setattr(workflow, key, value)
-        session.commit()
-        session.refresh(workflow)
-        return workflow
+    if status_filter:
+        query += " AND status = ?"
+        params.append(status_filter)
+
+    cursor.execute(query, params)
+    row = cursor.fetchone()
+
+    if row:
+        return Workflow.from_db_row(row)
     return None
 
 
-def delete_workflow(session: Session, workflow_id: int) -> bool:
-    workflow = session.query(Workflow).filter(Workflow.id == workflow_id).first()
-    if workflow:
-        session.delete(workflow)
-        session.commit()
-        return True
-    return False
+def update_workflow(
+    conn: sqlite3.Connection, workflow_id: int, **kwargs
+) -> Optional[Workflow]:
+    """Update a workflow in the database"""
+    cursor = conn.cursor()
+
+    # Check if workflow exists
+    cursor.execute("SELECT * FROM workflows WHERE id = ?", (workflow_id,))
+    row = cursor.fetchone()
+
+    if not row:
+        return None
+
+    # Build update query dynamically based on provided fields
+    update_fields = []
+    params = []
+
+    for key, value in kwargs.items():
+        if key == "definition":
+            update_fields.append("definition = ?")
+            params.append(serialize_json(value))
+
+            # Regenerate pipeline if definition is updated
+            if value and value.get("nodes"):
+                pipeline = workflow_to_signature(value, workflow_id)
+                update_fields.append("pipeline = ?")
+                params.append(serialize_json(pipeline))
+        elif key == "pipeline":
+            update_fields.append("pipeline = ?")
+            params.append(serialize_json(value))
+        elif key == "last_run_at":
+            update_fields.append("last_run_at = ?")
+            params.append(serialize_datetime(value))
+        elif key in ["name", "description", "status", "draft", "crontab_expression"]:
+            update_fields.append(f"{key} = ?")
+            params.append(value)
+
+    # Always update updated_at
+    update_fields.append("updated_at = CURRENT_TIMESTAMP")
+
+    if not update_fields:
+        return Workflow.from_db_row(row)
+
+    # Execute update
+    params.append(workflow_id)
+    query = f"UPDATE workflows SET {', '.join(update_fields)} WHERE id = ?"
+
+    cursor.execute(query, params)
+    conn.commit()
+
+    # Fetch updated workflow
+    cursor.execute("SELECT * FROM workflows WHERE id = ?", (workflow_id,))
+    row = cursor.fetchone()
+
+    return Workflow.from_db_row(row)
+
+
+def delete_workflow(conn: sqlite3.Connection, workflow_id: int) -> bool:
+    """Delete a workflow from the database"""
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM workflows WHERE id = ?", (workflow_id,))
+    conn.commit()
+
+    return cursor.rowcount > 0

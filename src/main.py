@@ -2,12 +2,22 @@ import uvicorn
 from fastapi import FastAPI
 from .config import settings
 from .workflows.router import router as workflows_router
+from .database import db
 
 app = FastAPI(
     title="WFForge - Workflow Engine",
     description="A powerful workflow engine with FastAPI, Celery, and SQLite",
     version="0.1.0"
 )
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on application startup"""
+    # Database tables are automatically created in database.py
+    # This event is here for any additional startup logic
+    pass
+
 
 app.include_router(workflows_router, prefix="/api/v1")
 
@@ -19,7 +29,7 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy"}
+    return {"status": "healthy", "database": db.db_path}
 
 
 if __name__ == "__main__":
