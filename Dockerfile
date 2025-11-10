@@ -47,8 +47,8 @@ COPY src/ ./src/
 COPY scripts/ ./scripts/
 COPY README.md ./
 
-# Create directories for SQLite databases and Celery broker
-RUN mkdir -p /app/data /app/celery_broker/out /app/celery_broker/processed
+# Create directories for SQLite databases, Celery broker, and results
+RUN mkdir -p /app/data /app/celery_broker/out /app/celery_broker/processed /app/celery_results
 
 # Create non-root user for security
 RUN useradd -m -u 1000 wfforge && \

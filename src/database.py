@@ -22,6 +22,13 @@ class Database:
         if db_path.startswith("sqlite:///"):
             db_path = db_path.replace("sqlite:///", "")
         self.db_path = db_path
+
+        # Ensure parent directory exists
+        import os
+        db_dir = os.path.dirname(self.db_path)
+        if db_dir:  # Only create if there's a directory path
+            os.makedirs(db_dir, exist_ok=True)
+
         self._init_db()
 
     def _init_db(self):
