@@ -2,7 +2,7 @@ from typing import List
 import sqlite3
 from fastapi import APIRouter, Depends, status, Request, HTTPException
 
-from celery import group
+from celery import group, signature
 
 from .models import Workflow
 from .schemas import (
@@ -34,7 +34,7 @@ def create_workflow(
     workflow_create: WorkflowCreate,
     conn: sqlite3.Connection = Depends(get_db),
 ):
-    return services.create_workflow(conn, **workflow_create.dict())
+    return services.create_workflow(conn, **workflow_create.model_dump())
 
 
 @router.get(
@@ -74,7 +74,7 @@ def update_workflow(
     workflow: Workflow = Depends(get_workflow),
     conn: sqlite3.Connection = Depends(get_db),
 ):
-    workflow = services.update_workflow(conn, workflow.id, **workflow_update.dict())
+    workflow = services.update_workflow(conn, workflow.id, **workflow_update.model_dump(exclude_unset=True))
     return workflow
 
 
@@ -95,13 +95,15 @@ def delete_workflow(
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def push_document(
-    workflow_pipeline: dict = Depends(get_pipeline),
+    workflow: Workflow = Depends(get_workflow),
     workflow_file: WorkflowFile = Depends(get_file),
 ):
+    # Get pipeline from workflow
+    workflow_pipeline_dict = await get_pipeline(workflow)
     # Convert pipeline dict back to Celery signature
-    pipeline = workflow_pipeline
+    pipeline = signature(workflow_pipeline_dict)
     pipeline.apply_async(args=(workflow_file,))
-    return {"message": "Document pushed successfully."}
+    return {"message": "Document pushed successfully. Task queued for execution."}
 
 
 @router.post(
@@ -109,16 +111,18 @@ async def push_document(
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def push_documents(
-    workflow_pipeline: dict = Depends(get_pipeline),
+    workflow: Workflow = Depends(get_workflow),
     workflow_files: List[WorkflowFile] = Depends(get_files),
 ):
+    # Get pipeline from workflow
+    workflow_pipeline_dict = await get_pipeline(workflow)
     pipelines = []
     for wf_file in workflow_files:
-        pipeline = workflow_pipeline.clone()
-        pipeline.tasks[0].update(args=(wf_file,))
-        pipelines.append(pipeline)
+        # Convert pipeline dict back to Celery signature for each file
+        pipeline = signature(workflow_pipeline_dict)
+        pipelines.append(pipeline.clone(args=(wf_file,)))
     group(pipelines).apply_async()
-    return {"message": "Documents pushed successfully."}
+    return {"message": "Documents pushed successfully. Tasks queued for execution."}
 
 
 @router.post(
@@ -131,7 +135,9 @@ async def push_message(
     conn: sqlite3.Connection = Depends(get_db),
 ):
     workflow = services.get_workflow_by_id(conn, workflow_id)
-    workflow_pipeline = await get_pipeline(workflow)
+    workflow_pipeline_dict = await get_pipeline(workflow)
     message = await request.json()
-    workflow_pipeline.apply_async(args=(message,))
-    return {"message": "Message pushed successfully."}
+    # Convert pipeline dict back to Celery signature
+    pipeline = signature(workflow_pipeline_dict)
+    pipeline.apply_async(args=(message,))
+    return {"message": "Message pushed successfully. Task queued for execution."}
