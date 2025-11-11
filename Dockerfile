@@ -47,11 +47,16 @@ COPY src/ ./src/
 COPY scripts/ ./scripts/
 COPY README.md ./
 
-# Create directories for SQLite databases, Celery broker, and results
-RUN mkdir -p /app/data /app/celery_broker/out /app/celery_broker/processed /app/celery_results
+# Create a non-root user to run the application
+RUN groupadd -r celery -g 1000 && \
+    useradd -r -u 1000 -g celery -s /bin/bash -d /app celery
 
-# Note: Running as root to avoid permission issues with Docker volumes
-# For production, consider using an entrypoint script to fix permissions
+# Create directories for SQLite databases, Celery broker, and results
+RUN mkdir -p /app/data /app/celery_broker/out /app/celery_broker/processed /app/celery_results && \
+    chown -R celery:celery /app
+
+# Switch to non-root user
+USER celery
 
 # Expose API port
 EXPOSE 8000
